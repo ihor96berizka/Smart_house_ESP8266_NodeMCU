@@ -5,11 +5,11 @@
  with the ESP8266 board/library.
 
  It connects to an MQTT server then:
-  - publishes "hello world" to the topic "outTopic" every two seconds
-  - subscribes to the topic "inTopic", printing out any messages
+  - publishes "hello world" to the topic "outTopic" every 10 seconds
+  - subscribes to the topic "led", printing out any messages
     it receives. NB - it assumes the received payloads are strings not binary
-  - If the first character of the topic "inTopic" is an 1, switch ON the ESP Led,
-    else switch it off
+  - If the first character of the topic "led" is an 1, switch off the ESP Led,
+    else switch it on
 
  It will reconnect to the server if the connection is lost using a blocking
  reconnect function. See the 'mqtt_reconnect_nonblocking' example for how to
