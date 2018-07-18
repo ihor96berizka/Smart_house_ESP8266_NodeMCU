@@ -5,11 +5,11 @@
  with the ESP8266 board/library.
 
  It connects to an MQTT server then:
-  - publishes "hello world" to the topic "outTopic" every 10 seconds
+  - publishes "hello world" to the topic "hello" every 10 seconds
   - subscribes to the topic "led", printing out any messages
     it receives. NB - it assumes the received payloads are strings not binary
-  - If the first character of the topic "led" is an 1, switch off the ESP Led,
-    else switch it on
+  - If the first character of the topic "led" is an 1, switch on the ESP Led,
+    else switch it off
 
  It will reconnect to the server if the connection is lost using a blocking
  reconnect function. See the 'mqtt_reconnect_nonblocking' example for how to
@@ -31,10 +31,12 @@
 const char* ssid = "ihor-GE62-6QD";
 const char* password = "11111111";
 const char* mqtt_server = "m23.cloudmqtt.com";
-const char* mqtt_user = "tlwhlgqr";
-const char* mqtt_pass = "g-VQc5c6w7eN";
+const char* mqtt_user = "****";
+const char* mqtt_pass = "****";
 const int   mqtt_port = 12925; 
+
 const int   ledPin = D5;
+const int DELAY = 10000;
 WiFiClient espClient;
 PubSubClient client(espClient);
 long lastMsg = 0;
@@ -42,7 +44,7 @@ char msg[50];
 int value = 0;
 
 void setup() {
-  pinMode(ledPin, OUTPUT);     // Initialize the BUILTIN_LED pin as an output
+  pinMode(ledPin, OUTPUT);     // Initialize the LED pin as an output
   Serial.begin(115200);
   setup_wifi();
   client.setServer(mqtt_server, mqtt_port);
@@ -70,38 +72,40 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 
-void callback(char* topic, byte* payload, unsigned int length) {
+void callback(char* topic, byte* payload, size_t length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
-  for (int i = 0; i < length; i++) {
+  for (size_t i = 0; i < length; i++) {
     Serial.print((char)payload[i]);
   }
   Serial.println();
 
   // Switch on the LED if an 1 was received as first character
   if ((char)payload[0] == '1') {
-    digitalWrite(ledPin, LOW);   // Turn the LED on (Note that LOW is the voltage level
-    // but actually the LED is on; this is because
-    // it is acive low on the ESP-01)
+    digitalWrite(ledPin, HIGH);   // Turn the LED on 
   } else {
-    digitalWrite(ledPin, HIGH);  // Turn the LED off by making the voltage HIGH
+    digitalWrite(ledPin, LOW);  // Turn the LED off 
   }
 
 }
 
 void reconnect() {
   // Loop until we're reconnected
-  while (!client.connected()) {
+  while (!client.connected()) 
+  {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect("ESP8266Client", mqtt_user, mqtt_pass)) {
+    if (client.connect("ESP8266Client", mqtt_user, mqtt_pass)) 
+    {
       Serial.println("connected");
       // Once connected, publish an announcement...
-      client.publish("outTopic", "hello world");
+      client.publish("hello", "hello world");
       // ... and resubscribe
       client.subscribe("led");
-    } else {
+    } 
+    else 
+    {
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
@@ -118,12 +122,12 @@ void loop() {
   client.loop();
 
   long now = millis();
-  if (now - lastMsg > 10000) {
+  if (now - lastMsg > DELAY) {
     lastMsg = now;
     ++value;
     snprintf (msg, 75, "hello world #%ld", value);
     Serial.print("Publish message: ");
     Serial.println(msg);
-    client.publish("outTopic", msg);
+    client.publish("hello", msg);
   }
 }
