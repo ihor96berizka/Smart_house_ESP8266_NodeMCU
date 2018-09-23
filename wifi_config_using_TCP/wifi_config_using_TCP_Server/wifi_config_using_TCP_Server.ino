@@ -1,9 +1,9 @@
-//#include <ESP8266WiFi.h>
-//#include <ESP8266WiFiAP.h>
 #include <stdlib.h>
 #include <WiFi.h>
-char* ssid = "ESP8266_AP";//"ihor-GE62-6QD";
+
+char* ssid = "ESP32_AP";//"ihor-GE62-6QD";
 char* password = "11111111";
+
 #define DATA_RECEIVED 0xFFu
 #define HEADER_LEN 3u
 #define WIFI_ERROR 10u
@@ -22,6 +22,7 @@ char wifiData[PARAM_NUM_WIFI][MAX_STRING_LEN] = {0};
 char mqttData[PARAM_NUM_MQTT][MAX_STRING_LEN] = {0};
 char buff[MAX_BUF_SIZE] = {0};
 WiFiServer wifiServer(80);
+
 void clearData(uint8_t number_of_params, char output[][MAX_STRING_LEN])
 {
   for (uint8_t i = 0; i < number_of_params; ++i)
@@ -65,45 +66,18 @@ bool readParams(const char* data, uint8_t number_of_params, char output[][MAX_ST
     }
     return true;
 }
-void setup() {
 
-  //buff = new unsigned char[DATA_LEN];
-  Serial.begin(115200);
- 
-  delay(1000);
- 
-  WiFi.softAP(ssid, password);
- 
-  Serial.println();
-  Serial.print("IP address: ");
-  Serial.println(WiFi.softAPIP());
- 
-  wifiServer.begin();
-}
- 
-void loop() {
-
- 
-  WiFiClient client = wifiServer.available();
-
-  if (client) 
-  {
-     Serial.println("Client connected");
-    //довжина корисних даних
-    uint16_t DATA_LEN = 0;
-    //тип даних - кофн wifi або mqtt
-    uint8_t DATA_TYPE = 0;
-    //тимчасовий буфер. на випадок якщо всі дані не прийшли відразу
+bool readSocket(WiFiClient& client, uint16_t& DATA_LEN, uint8_t& DATA_TYPE)
+{
+  bool finished = false;
+  //тимчасовий буфер. на випадок якщо всі дані не прийшли відразу
     char* tmp_buf = nullptr;
     uint16_t msg_len = 0;
     //заголовок повідомлення. header[0] - DATA_TYPE, header[1] - DATA_LEN(MSB), header[2] - DATA_LEN(LSB)
     uint8_t header[HEADER_LEN];
-    
-    while (client.connected()) 
-    {
-      //для того щоб знати чи вже прочитали весь заголовок
+   //для того щоб знати чи вже прочитали весь заголовок
       int bytes_read = 0;
-      while (client.available() > 0) 
+   while (client.available() > 0) 
       {
         bytes_read++;
         //вичитати заголовок
@@ -152,10 +126,49 @@ void loop() {
         }
     
       }
-      //якщо дійшли сюди - всі дані з сокета прочитані
+      if (bytes_read > DATA_LEN)
+      {
+        finished = true;  
+      }
+
+  
+  return finished;
+}
+void setup() {
+
+  //buff = new unsigned char[DATA_LEN];
+  Serial.begin(115200);
+ 
+  delay(1000);
+ 
+  WiFi.softAP(ssid, password);
+ 
+  Serial.println();
+  Serial.print("IP address: ");
+  Serial.println(WiFi.softAPIP());
+ 
+  wifiServer.begin();
+}
+ 
+void loop() {
+
+ 
+  WiFiClient client = wifiServer.available();
+
+  if (client) 
+  {
+     Serial.println("Client connected");
+    //довжина корисних даних
+    uint16_t DATA_LEN = 0;
+    //тип даних - кофн wifi або mqtt
+    uint8_t DATA_TYPE = 0;
+    
+    
+    while (client.connected()) 
+    {
      // Serial.println();
       //перевірити чи весь пакет прийшов. надіслати сповіщення клієнту що все отримано. 
-      if (bytes_read > DATA_LEN)
+      if (readSocket(client, DATA_LEN, DATA_TYPE))
       {
         client.write(DATA_RECEIVED);
         //отримано всі дані. вивести результат.
@@ -167,7 +180,7 @@ void loop() {
         
         Serial.println("Parsed data:");
         
-        switch (header[0]) 
+        switch (DATA_TYPE) 
         {
           case WIFI_CONFIG:
           {
@@ -211,7 +224,7 @@ void loop() {
           Serial.print("...");
           attempts++;
         }
-      if (attempts < WIFI_TIMEOUT)
+      if (attempts < WIFI_TIMEOUT && WiFi.status() == WL_CONNECTED && WiFi.localIP() != IPAddress(0, 0, 0, 0))
       {
         //client.stop();
         //Serial.println("Client disconnected");
@@ -234,6 +247,7 @@ void loop() {
         Serial.println("clear invalid wifi data...");
         clearData(PARAM_NUM_WIFI, wifiData);
         memset(buff, '\0', MAX_BUF_SIZE);
+        WiFi.disconnect();
       }
    }//всі дані прочитано
     
