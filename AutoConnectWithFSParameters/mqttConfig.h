@@ -32,7 +32,7 @@ void receiveDataCallback(char* topic, byte* payload, size_t length) {
 bool connectToMQTTServer()
 {
   Serial.println("connectToMQTTServer func");
-  client.setServer(mqtt_server, atoi(mqtt_port));
+  client.setServer(mqttData[0], atoi(mqttData[1]));
   client.setCallback(receiveDataCallback);
 
   int start_time = millis();
@@ -57,7 +57,7 @@ bool connectToMQTTServer()
 */
   while (!client.connected()) 
   {
-    if (client.connect("ESP8266Client", mqtt_user, mqtt_pwd))
+    if (client.connect("ESP8266Client", mqttData[2], mqttData[3]))
     {
     
     //delay(250);
@@ -79,7 +79,6 @@ void configMQTT()
   Serial.print("ConfigMQTT func");
   if (connectToMQTTServer())
   {
-    
     return;
   }
   else
