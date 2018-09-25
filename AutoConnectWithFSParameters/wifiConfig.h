@@ -136,6 +136,47 @@ bool readSocket(WiFiClient& client, uint16_t& DATA_LEN, uint8_t& DATA_TYPE)
 
 bool connectToWifi()
 {
+  WiFi.begin(wifiData[0], wifiData[1]);
+  Serial.print("Connecting to ");
+  Serial.print(wifiData[0]); Serial.println(" ...");
+
+  uint8_t attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < WIFI_TIMEOUT) 
+  { // Wait for the Wi-Fi to connect
+     delay(1000);
+     Serial.print("...");
+     attempts++;
+  }
+  if (attempts < WIFI_TIMEOUT && WiFi.status() == WL_CONNECTED && WiFi.localIP() != IPAddress(0, 0, 0, 0))
+  {
+        //client.stop();
+        //Serial.println("Client disconnected");
+       // Serial.println("Stopping AP and server...");
+        //wifiServer.stop();
+       // WiFi.softAPdisconnect();  
+        //Serial.println("Stopped AP and server...");
+        //Serial.println('\n');
+      Serial.println("Connection established!");  
+      Serial.print("IP address:\t");
+      Serial.println(WiFi.localIP());  
+      //Serial.println("clear wifi data...");
+      //clearData(PARAM_NUM_WIFI, wifiData); 
+      memset(buff, '\0', MAX_BUF_SIZE);
+      return true; 
+   }
+   else
+   {
+      Serial.println("Failed to connect to wifi...\n Error message is sent to app");
+      //client.write(WIFI_ERROR);
+      Serial.println("clear invalid wifi data...");
+      clearData(PARAM_NUM_WIFI, wifiData);
+      memset(buff, '\0', MAX_BUF_SIZE);
+      WiFi.disconnect();
+      return false;
+   }
+}
+bool getDataFromAP()
+{
   startAP();
 
   while(1)
@@ -149,8 +190,6 @@ bool connectToWifi()
       uint16_t DATA_LEN = 0;
     //тип даних - кофн wifi або mqtt
       uint8_t DATA_TYPE = 0;
-    
-    
       while (client.connected()) 
       {
      // Serial.println();
@@ -182,7 +221,7 @@ bool connectToWifi()
               }
             }
             break;
-          case MQTT_CONFIG:
+        /*  case MQTT_CONFIG:
           {
         //call mqtt parser.
             Serial.println("\nMQTT settings:");
@@ -194,64 +233,27 @@ bool connectToWifi()
             }
           }
             break;
+            */
           default:
             break;
         } 
 
         delay(10);
       //спробувати підключитись до вайфаю. якщо не виходить - відправити код помилки.
-        WiFi.begin(wifiData[0], wifiData[1]);
-        Serial.print("Connecting to ");
-        Serial.print(wifiData[0]); Serial.println(" ...");
-
-        uint8_t attempts = 0;
-        while (WiFi.status() != WL_CONNECTED && attempts < WIFI_TIMEOUT) 
-        { // Wait for the Wi-Fi to connect
-          delay(1000);
-          Serial.print("...");
-          attempts++;
-        }
-        if (attempts < WIFI_TIMEOUT && WiFi.status() == WL_CONNECTED && WiFi.localIP() != IPAddress(0, 0, 0, 0))
-        {
-        //client.stop();
-        //Serial.println("Client disconnected");
-       // Serial.println("Stopping AP and server...");
-        //wifiServer.stop();
-       // WiFi.softAPdisconnect();  
-        //Serial.println("Stopped AP and server...");
-        //Serial.println('\n');
-          Serial.println("Connection established!");  
-          Serial.print("IP address:\t");
-          Serial.println(WiFi.localIP());  
-          Serial.println("clear wifi data...");
-          clearData(PARAM_NUM_WIFI, wifiData); 
-          memset(buff, '\0', MAX_BUF_SIZE);
+       if (connectToWifi())
+       {
           return true; 
-        }
-        else
-        {
-          Serial.println("Failed to connect to wifi...\n Error message is sent to app");
-          client.write(WIFI_ERROR);
-          Serial.println("clear invalid wifi data...");
-          clearData(PARAM_NUM_WIFI, wifiData);
-          memset(buff, '\0', MAX_BUF_SIZE);
-          WiFi.disconnect();
-          //return false;
-        }
+       }
+       else
+       {
+          client.write(WIFI_ERROR); 
+       }
     }//всі дані прочитано
     
-   /* clearData(PARAM_NUM_WIFI, wifiData);
-    Serial.println("widi data after clear...");
-    for (uint8_t i = 0; i < PARAM_NUM_WIFI; ++i)
-    {
-        printLine(wifiData[i]);
-        Serial.println();
-    }
-    */
-    }//доки є клієнт(додаток підключений до есп)
+   }//доки є клієнт(додаток підключений до есп)
  
-   }
   }
+ }
   return false;
 }
 void saveConfigCallback()
@@ -261,22 +263,27 @@ void saveConfigCallback()
   shouldSaveConfig = true;
 }
 
-void saveConfigToSPIFFS()
+void saveConfigToSPIFFS(uint8_t TYPE)
 {
   Serial.println("SaveConfigToSPIFFS func");
   //save the custom parameters to FS
-  if (shouldSaveConfig) 
-  {
+ 
     Serial.println("saving config");
     DynamicJsonBuffer jsonBuffer;
     JsonObject& json = jsonBuffer.createObject();
-    json["wifi_ssid"] = wifiData[0];
-    json["wifi_pwd"] = wifiData[1];
-    json["mqtt_server"] = mqttData[0];
-    json["mqtt_port"] = mqttData[1];
-    json["mqtt_user"] = mqttData[2];
-    json["mqtt_pwd"] = mqttData[3];
-
+    if (TYPE == WIFI_CONFIG)
+    {
+      json["wifi_ssid"] = wifiData[0];
+      json["wifi_pwd"] = wifiData[1];      
+    }
+    else if (TYPE == MQTT_CONFIG)
+    {
+      json["mqtt_server"] = mqttData[0];
+      json["mqtt_port"] = mqttData[1];
+      json["mqtt_user"] = mqttData[2];
+      json["mqtt_pwd"] = mqttData[3];  
+    }
+    
     File configFile = SPIFFS.open("/config.json", "w");
     if (!configFile) {
       Serial.println("failed to open config file for writing");
@@ -287,19 +294,15 @@ void saveConfigToSPIFFS()
     configFile.close();
     Serial.println("Saved parameters to SPIFFS");
     //end save
-  }
   
 }
-bool readConfigFromSPIFFS()
+bool readConfigFromSPIFFS(uint8_t TYPE)
 {
   Serial.println("readConfigFromSPIFFS");
   bool result = false;
-  
-  Serial.begin(115200);
-  Serial.println();
 
   //clean FS, for testing
-  SPIFFS.format();
+  //SPIFFS.format();
   //read configuration from FS json
   Serial.println("mounting FS...");
 
@@ -326,14 +329,21 @@ bool readConfigFromSPIFFS()
         if (json.success()) 
         {
           Serial.println("\nparsed json");
-          
-          strcpy(wifiData[0], json["wifi_ssid"]);
-          strcpy(wifiData[1], json["wifi_pwd"]);
-          strcpy(mqttData[0], json["mqtt_server"]);
-          strcpy(mqttData[1], json["mqtt_port"]);
-          strcpy(mqttData[2], json["mqtt_user"]);
-          strcpy(mqttData[3], json["mqtt_pwd"]);
-        } else 
+          if (TYPE == WIFI_CONFIG)
+          {
+            strcpy(wifiData[0], json["wifi_ssid"]);
+            strcpy(wifiData[1], json["wifi_pwd"]);
+          }
+          else if (TYPE == MQTT_CONFIG)
+          {
+            strcpy(mqttData[0], json["mqtt_server"]);
+            strcpy(mqttData[1], json["mqtt_port"]);
+            strcpy(mqttData[2], json["mqtt_user"]);
+            strcpy(mqttData[3], json["mqtt_pwd"]);  
+          }
+          result = true;
+        } 
+        else 
         {
           Serial.println("failed to load json config");
           result = false;
@@ -343,13 +353,49 @@ bool readConfigFromSPIFFS()
   } else 
   {
     Serial.println("failed to mount FS");
+    result = false;
   }
   //end read
   return result;
 }
 bool configWifi()
 {
-  return connectToWifi();
+  Serial.println("Start of config wifi");
+  if (readConfigFromSPIFFS(WIFI_CONFIG))
+  {
+    Serial.println("Data is fetched from flash");
+    if (connectToWifi())
+    {
+      Serial.println("Connected to wifi.");
+    }
+    else
+    {
+      Serial.println("Invalid data in flash");  
+      Serial.println("Failed to load data from flash.\nStart AP mode");
+      if (getDataFromAP())
+      {
+        saveConfigToSPIFFS(WIFI_CONFIG);
+        return true;
+      }
+      else
+      {
+        return false;  
+      }
+    }
+  }
+  else
+  {
+    Serial.println("Failed to load data from flash.\nStart AP mode");
+    if (getDataFromAP())
+    {
+      saveConfigToSPIFFS(WIFI_CONFIG);
+      return true;
+    }
+    else
+    {
+      return false;  
+    }
+  }
 }
 
 
