@@ -1,5 +1,10 @@
 #ifndef _CONFIG_
 #define _CONFIG_
+
+#include "Arduino.h"
+//#include "FS.h"//
+#include "SPIFFS.h"//for esp32
+
 //wifi and mqtt configs
 #define DEVICE_NAME_LEN 14u
 #define WIFI_TIMEOUT 5u
@@ -29,21 +34,56 @@ char* password = "";
 
 #define RANGE_MV ((MAX_DATA_AMP_LIM * REF_RESISTANCE) - (MIN_DATA_AMP_LIM * REF_RESISTANCE))
 #define RANGE_M 7 
-//flag for saving data
-bool shouldSaveConfig = false;
 
-//define your default values here, if there are different values in config.json, they are overwritten.
-/*char mqtt_server[SERVER_NAME_LEN] = "m23.cloudmqtt.com";
-char mqtt_port[SERVER_PORT_LEN] = "12925";
-char mqtt_user[USER_NAME_LEN] = "tlwhlgqr";
-char mqtt_pwd[SERVER_PWD_LEN] = "g-VQc5c6w7eN";
-char wifi_ssid[SSID_LEN] = "netis_2.4G_F4A82F";
-char wifi_pwd[WIFI_PWD_LEN] = "281188semak";
-*/
 char wifiData[PARAM_NUM_WIFI][MAX_STRING_LEN] = {0};
 char mqttData[PARAM_NUM_MQTT][MAX_STRING_LEN] = {0};
 char buff[MAX_BUF_SIZE] = {0};
 WiFiServer wifiServer(80);
 const char device_name[DEVICE_NAME_LEN] = "ESP8266Client";
+
+#define BTN_PIN 35u
+#define LED 32U
+
+uint8_t state = 0;
+portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+
+void clearData(uint8_t number_of_params, char output[][MAX_STRING_LEN])
+{
+  for (uint8_t i = 0; i < number_of_params; ++i)
+  {
+    memset(output[i],'\0',MAX_STRING_LEN);
+  }  
+}
+
+void IRAM_ATTR handleIntr()
+{
+  portENTER_CRITICAL_ISR(&mux);
+  state = 1;
+  portEXIT_CRITICAL_ISR(&mux);
+  //ESP.restart();
+}
+
+void resetConfigs()
+{
+  if (state)
+  {
+      digitalWrite(LED, 1);  
+  
+      Serial.println("Reset button pressed.");
+      Serial.println("Clearing wifi and mqtt configs...");
+      memset(buff, '\0', MAX_BUF_SIZE);
+      Serial.println("wifi clear");
+      clearData(PARAM_NUM_WIFI, wifiData);
+      Serial.println("mqtt clear");
+      clearData(PARAM_NUM_MQTT, mqttData);
+      Serial.println("formatting flash");
+      SPIFFS.format();
+      Serial.println("Done!\nturn off led");
+      delay(100);
+      digitalWrite(LED, 0);
+      Serial.println("Restart ESP module...");
+      state = 0;
+  }  
+}
 #endif
 

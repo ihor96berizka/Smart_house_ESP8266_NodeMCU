@@ -4,7 +4,7 @@
 #include "Arduino.h"
 
 //#include <FS.h>    for esp8266                //this needs to be first, or it all crashes and burns...
-#include "FS.h"//
+//#include "FS.h"//
 #include "SPIFFS.h"//for esp32
 #include <WiFi.h>          //https://github.com/esp8266/Arduino
 
@@ -12,13 +12,7 @@
 #include "config.h"
 //WiFiServer wifiServer(80);
 
-void clearData(uint8_t number_of_params, char output[][MAX_STRING_LEN])
-{
-  for (uint8_t i = 0; i < number_of_params; ++i)
-  {
-    memset(output[i],'\0',MAX_STRING_LEN);
-  }  
-}
+
 void printLine(const char* data)
 {
   uint16_t len = strlen(data);
@@ -255,12 +249,6 @@ bool getDataFromAP()
   }
  }
   return false;
-}
-void saveConfigCallback()
-{
-  Serial.println("saveConfigCallBack func");
-  Serial.println("Should save config");
-  shouldSaveConfig = true;
 }
 
 void saveConfigToSPIFFS(uint8_t TYPE)
