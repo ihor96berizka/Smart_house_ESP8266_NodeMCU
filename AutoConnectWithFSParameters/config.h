@@ -42,8 +42,9 @@ WiFiServer wifiServer(80);
 const char device_name[DEVICE_NAME_LEN] = "ESP8266Client";
 
 #define BTN_PIN 35u
-#define LED 32U
-
+#define LED_RESET 27u
+#define LED_WIFI_OK 14u
+#define LED_WIFI_ERROR 12u
 uint8_t state = 0;
 portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 
@@ -67,7 +68,9 @@ void resetConfigs()
 {
   if (state)
   {
-      digitalWrite(LED, 1);  
+      digitalWrite(LED_WIFI_ERROR, LOW);
+      digitalWrite(LED_WIFI_OK, LOW);
+      digitalWrite(LED_RESET, 1);  
   
       Serial.println("Reset button pressed.");
       Serial.println("Clearing wifi and mqtt configs...");
@@ -80,9 +83,10 @@ void resetConfigs()
       SPIFFS.format();
       Serial.println("Done!\nturn off led");
       delay(100);
-      digitalWrite(LED, 0);
+      digitalWrite(LED_RESET, 0);
       Serial.println("Restart ESP module...");
       state = 0;
+      ESP.restart();
   }  
 }
 #endif
