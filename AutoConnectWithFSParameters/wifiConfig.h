@@ -1,18 +1,23 @@
+/**
+* @file wifiConfig.h
+* @author Ihor Berizka
+* @date 30 Sep 2018
+* @brief File contains functions related to WiFi config state.
+*/
 #ifndef _WIFICONFIG_F
 #define _WIFICONFIG_F
 
-#include "Arduino.h"
-
-//#include <FS.h>    for esp8266                //this needs to be first, or it all crashes and burns...
-//#include "FS.h"//
 #include "SPIFFS.h"//for esp32
-#include <WiFi.h>          //https://github.com/esp8266/Arduino
+#include <WiFi.h>         
 
-#include <ArduinoJson.h>          //https://github.com/bblanchon/ArduinoJson
+#include <ArduinoJson.h>          
 #include "config.h"
-//WiFiServer wifiServer(80);
 
-
+/**
+ * @brief Function used for debug. 
+ * Prints input parameter to serial port.
+ * @param data : C-style string to be printed.
+*/
 void printLine(const char* data)
 {
   uint16_t len = strlen(data);
@@ -21,6 +26,12 @@ void printLine(const char* data)
     Serial.print(char(data[i]));  
   }  
 }
+/**
+ * @brief Parses data fetched from socket.
+ * @param data : C-style string to be parsed.
+ * @param number_of_params : number of parameters in string.
+ * @param output : array of C-style strings. Parsed parameters are saved in this parameter.
+*/
 bool readParams(const char* data, uint8_t number_of_params, char output[][MAX_STRING_LEN])
 {
     uint8_t processed_params = 0;
@@ -49,7 +60,10 @@ bool readParams(const char* data, uint8_t number_of_params, char output[][MAX_ST
     }
     return true;
 }
-
+/**
+ * @brief Launches AP mode.
+ * As a result - we can connect to ESP32 module via WiFi.
+*/
 void startAP()
 {
   WiFi.softAP(ssid, password);
@@ -60,6 +74,13 @@ void startAP()
  
   wifiServer.begin();
 }
+/**
+ * @brief Fetch data from client.
+ * @param client : client connected to TCP\IP server on ESP32.
+ * @return DATA_LEN : number of bytes to read from socket.
+ * @return DATA_TYPE : type of data packet.
+ * @return Return true if DATA_LEN bytes fetched from socket.
+*/
 bool readSocket(WiFiClient& client, uint16_t& DATA_LEN, uint8_t& DATA_TYPE)
 {
   bool finished = false;

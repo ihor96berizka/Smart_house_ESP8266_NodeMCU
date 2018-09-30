@@ -66,7 +66,7 @@ void IRAM_ATTR handleIntr()
 
 void resetConfigs()
 {
-  if (state)
+  if (state == 1)
   {
       digitalWrite(LED_WIFI_ERROR, LOW);
       digitalWrite(LED_WIFI_OK, LOW);

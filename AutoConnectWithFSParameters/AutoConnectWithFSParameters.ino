@@ -1,4 +1,6 @@
-
+/**
+* @file AutoconnectWithFSParameters.ino
+*/
 #include "wifiConfig.h"
 #include "mqttConfig.h"
 #include "adc_routine.h"
