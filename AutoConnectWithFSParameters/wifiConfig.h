@@ -7,7 +7,6 @@
 #ifndef _WIFICONFIG_F
 #define _WIFICONFIG_F
 
-#include "SPIFFS.h"//for esp32
 #include <WiFi.h>         
 
 #include <ArduinoJson.h>          
@@ -30,7 +29,7 @@ void printLine(const char* data)
  * @brief Parses data fetched from socket.
  * @param data : C-style string to be parsed.
  * @param number_of_params : number of parameters in string.
- * @param output : array of C-style strings. Parsed parameters are saved in this parameter.
+ * @return output : array of C-style strings. Parsed parameters are saved in this parameter.
 */
 bool readParams(const char* data, uint8_t number_of_params, char output[][MAX_STRING_LEN])
 {
@@ -43,17 +42,17 @@ bool readParams(const char* data, uint8_t number_of_params, char output[][MAX_ST
     while (processed_params < number_of_params)
     {
         word_begin = current;
-        //пройтись по всьому рядку до першого delimiter
+        //find first delimiter
         while(data[current] != DELIMITER && current != end + 1)
         {
             ++current;
         }
         word_end = current;
-        //current буде вказувати на розділювач
-        //якщо пройшлись по всьому і нема розділювача - invalid data
+        //current points to delimiter
+        //if current equals to end - invalid data
         if (current == end)
             return false;
-        //скопіювати параметр
+        //copy parameter
         memcpy(output[processed_params], data + word_begin, word_end - word_begin);
         ++current;
         ++processed_params;
@@ -81,36 +80,42 @@ void startAP()
  * @return DATA_TYPE : type of data packet.
  * @return Return true if DATA_LEN bytes fetched from socket.
 */
-bool readSocket(WiFiClient& client, uint16_t& DATA_LEN, uint8_t& DATA_TYPE)
+uint8_t readSocket(WiFiClient& client, uint16_t& DATA_LEN, uint8_t& DATA_TYPE)
 {
-  bool finished = false;
-  //тимчасовий буфер. на випадок якщо всі дані не прийшли відразу
-    char* tmp_buf = nullptr;
-    uint16_t msg_len = 0;
-    //заголовок повідомлення. header[0] - DATA_TYPE, header[1] - DATA_LEN(MSB), header[2] - DATA_LEN(LSB)
-    uint8_t header[HEADER_LEN];
-   //для того щоб знати чи вже прочитали весь заголовок
-      int bytes_read = 0;
+   uint8_t finished = SOCKET_NO_DATA;
+   //temporary buffer.For case when data is fetched in portions. 
+   char* tmp_buf = nullptr;
+   uint16_t msg_len = 0;
+   //packet header. header[1] - DATA_TYPE, header[2] - DATA_LEN(MSB), header[3] - DATA_LEN(LSB)
+   uint8_t header[HEADER_LEN];
+   //number of read bytes.
+   int bytes_read = 0;
    while (client.available() > 0) 
       {
+        Serial.println("Bytes available > 0");
         bytes_read++;
-        //вичитати заголовок
+        //read header
         if (bytes_read <= HEADER_LEN)
         {
           header[bytes_read-1] = client.read();
-          Serial.print(header[bytes_read-1]);
-          //якщо прочитали заголовок. сформувати довжину буферу та тип
+          Serial.println(header[bytes_read-1]);
+          if (header[0] != DEVICE_CONFIG)
+          {
+            finished = SOCKET_INVALID_DATA;
+            return finished;  
+          }
+          //parse packet type and payload size
           if (bytes_read == HEADER_LEN)
           {
-            DATA_TYPE = header[0];
-            DATA_LEN = header[1] << 8 | header[2];
+            DATA_TYPE = header[1];
+            DATA_LEN = header[2] << 8 | header[3];
             Serial.println("\nHeader received!");
             Serial.print("Data len: ");
             Serial.println(DATA_LEN);
            
           }
           
-        }//читати дані(значення параметрів)
+        }//read payload
         else
         {
             msg_len = client.available();
@@ -119,7 +124,7 @@ bool readSocket(WiFiClient& client, uint16_t& DATA_LEN, uint8_t& DATA_TYPE)
             if (tmp_buf == nullptr)
             {
               tmp_buf = new char[msg_len]; 
-              //вичитати всі доступні байти
+              //read all avaible bytes
               bytes_read += client.read(reinterpret_cast<uint8_t*>(tmp_buf), msg_len); 
               Serial.println("received(tmp_buf): ");
               for (uint16_t i = 0; i < msg_len; ++i)
@@ -142,13 +147,16 @@ bool readSocket(WiFiClient& client, uint16_t& DATA_LEN, uint8_t& DATA_TYPE)
       }
       if (bytes_read > DATA_LEN)
       {
-        finished = true;  
+        finished = SOCKET_CORRECT_DATA;  
       }
 
-  
   return finished;
 }
 
+/**
+ * @brief Connect to WiFi using saved SSID and password.
+ * @return Return true if connection is successful
+*/
 bool connectToWifi()
 {
   WiFi.begin(wifiData[0], wifiData[1]);
@@ -164,25 +172,15 @@ bool connectToWifi()
   }
   if (attempts < WIFI_TIMEOUT && WiFi.status() == WL_CONNECTED && WiFi.localIP() != IPAddress(0, 0, 0, 0))
   {
-        //client.stop();
-        //Serial.println("Client disconnected");
-       // Serial.println("Stopping AP and server...");
-        //wifiServer.stop();
-       // WiFi.softAPdisconnect();  
-        //Serial.println("Stopped AP and server...");
-        //Serial.println('\n');
       Serial.println("Connection established!");  
       Serial.print("IP address:\t");
-      Serial.println(WiFi.localIP());  
-      //Serial.println("clear wifi data...");
-      //clearData(PARAM_NUM_WIFI, wifiData); 
+      Serial.println(WiFi.localIP()); 
       memset(buff, '\0', MAX_BUF_SIZE);
       return true; 
    }
    else
    {
       Serial.println("Failed to connect to wifi...\n Error message is sent to app");
-      //client.write(WIFI_ERROR);
       Serial.println("clear invalid wifi data...");
       clearData(PARAM_NUM_WIFI, wifiData);
       memset(buff, '\0', MAX_BUF_SIZE);
@@ -190,6 +188,13 @@ bool connectToWifi()
       return false;
    }
 }
+/**
+ * @brief Starts AP mode.
+ * Gets data from client(app) and tryes to connect to WiFi.
+ * If connection successful - returns true and writes to client WIFI_CONNECTED code  new IP address.
+ * If connection failed - returns false and writes to client WIFI_ERROR code.
+ * @return True if connected to WiFi. False otherwise.
+*/
 bool getDataFromAP()
 {
   startAP();
@@ -201,15 +206,16 @@ bool getDataFromAP()
     if (client) 
     {
      Serial.println("Client connected");
-    //довжина корисних даних
+    //payload size
       uint16_t DATA_LEN = 0;
-    //тип даних - кофн wifi або mqtt
+    //payload type - wifi or mqtt config
       uint8_t DATA_TYPE = 0;
       while (client.connected()) 
       {
      // Serial.println();
       //перевірити чи весь пакет прийшов. надіслати сповіщення клієнту що все отримано. 
-        if (readSocket(client, DATA_LEN, DATA_TYPE))
+      uint8_t socketStatus = readSocket(client, DATA_LEN, DATA_TYPE);
+        if (socketStatus == SOCKET_CORRECT_DATA)
         {
           client.write(DATA_RECEIVED);
         //отримано всі дані. вивести результат.
@@ -257,6 +263,8 @@ bool getDataFromAP()
       //спробувати підключитись до вайфаю. якщо не виходить - відправити код помилки.
        if (connectToWifi())
        {
+          client.write(WIFI_CONNECTED);
+          client.write(WiFi.localIP().toString().c_str(), IP_ADDR_LEN);
           return true; 
        }
        else
@@ -264,6 +272,12 @@ bool getDataFromAP()
           client.write(WIFI_ERROR); 
        }
     }//всі дані прочитано
+    else if (socketStatus == SOCKET_INVALID_DATA)//прийшло щось лєве... тут перевірка не канає.
+    {
+      Serial.println("Unsupported packet...");
+      Serial.println("Client disconnected!");
+      client.stop();
+    }
     
    }//доки є клієнт(додаток підключений до есп)
  
@@ -409,4 +423,3 @@ bool configWifi()
 
 
 #endif
-
