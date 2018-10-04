@@ -9,9 +9,12 @@
 #define DEVICE_NAME_LEN 14u
 #define WIFI_TIMEOUT 5u
 #define DATA_RECEIVED 0xFFu
-#define HEADER_LEN 3u
+#define HEADER_LEN 4u
 #define WIFI_ERROR 10u
+#define WIFI_CONNECTED 11u
 #define MQTT_ERROR 20u
+#define MQTT_CONNECTED 21u
+#define IP_ADDR_LEN 4u
 
 //esp32 ap name and pwd
 char* ssid = "ESP32_AP";//"ihor-GE62-6QD";
@@ -24,6 +27,11 @@ char* password = "";
 #define MAX_BUF_SIZE 100u
 #define WIFI_CONFIG 3u
 #define MQTT_CONFIG 4u
+#define DEVICE_CONFIG 255u
+
+#define SOCKET_INVALID_DATA 1u
+#define SOCKET_CORRECT_DATA 0u
+#define SOCKET_NO_DATA      3u
 
 //ADC - related constants
 #define REF_RESISTANCE 33
@@ -90,4 +98,3 @@ void resetConfigs()
   }  
 }
 #endif
-
