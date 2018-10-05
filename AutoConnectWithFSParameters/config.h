@@ -15,14 +15,14 @@
 #define WIFI_TIMEOUT 5u
 #define DATA_RECEIVED 0xFFu
 #define HEADER_LEN 4u
-#define WIFI_ERROR 10u
-#define WIFI_CONNECTED 11u
+#define WIFI_ERROR 1u
+#define WIFI_CONNECTED 0u
 #define MQTT_ERROR 20u
 #define MQTT_CONNECTED 21u
-#define IP_ADDR_LEN 4u
+#define IP_ADDR_LEN 16u
 
 //esp32 ap name and pwd
-char* ssid = "ESP32_AP";//"ihor-GE62-6QD";
+char* ssid = "Wall Sensor";
 char* password = "";
 
 #define DELIMITER '\n'

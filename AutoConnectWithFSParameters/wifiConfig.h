@@ -265,8 +265,8 @@ bool getDataFromAP()
       //спробувати підключитись до вайфаю. якщо не виходить - відправити код помилки.
        if (connectToWifi())
        {
-          client.write(WIFI_CONNECTED);
-          //client.write(WiFi.localIP().toString().c_str(), IP_ADDR_LEN);
+          client.write((uint8_t)(WIFI_CONNECTED));
+          client.write(WiFi.localIP().toString().c_str(), IP_ADDR_LEN);
           return true; 
        }
        else
