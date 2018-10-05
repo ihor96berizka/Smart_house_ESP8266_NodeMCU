@@ -1,6 +1,11 @@
 #ifndef _ADC_ROUTINE_
 #define _ADC_ROUTINE_
-
+/**
+ * @file adc_routine.h
+ * @author Ihor Berizka
+ * @date 30 Sep 2018
+ * @brief File contains functions related to ADC config state.
+*/
 #include "Arduino.h"
 #include "config.h"
 

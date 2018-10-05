@@ -1,13 +1,13 @@
 /**
 * @file AutoconnectWithFSParameters.ino
+* @author Ihor Berizka
+* @date 30 Sep 2018
+* @brief File contains entry point to application.
 */
+
 #include "wifiConfig.h"
 #include "mqttConfig.h"
 #include "adc_routine.h"
-
-
-//read analog pin - analogRead(A0);
-
 
 void setup() {
 

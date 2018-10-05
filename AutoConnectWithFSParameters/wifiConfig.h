@@ -78,7 +78,9 @@ void startAP()
  * @param client : client connected to TCP\IP server on ESP32.
  * @return DATA_LEN : number of bytes to read from socket.
  * @return DATA_TYPE : type of data packet.
- * @return Return true if DATA_LEN bytes fetched from socket.
+ * @return SOCKET_NO_DATA if no data available.
+ * @return SOCKET_INVALID_DATA if received invalid data packet.
+ * @return SOCKET_CORRECT_DATA if received correct data packet.
 */
 uint8_t readSocket(WiFiClient& client, uint16_t& DATA_LEN, uint8_t& DATA_TYPE)
 {
@@ -217,7 +219,7 @@ bool getDataFromAP()
       uint8_t socketStatus = readSocket(client, DATA_LEN, DATA_TYPE);
         if (socketStatus == SOCKET_CORRECT_DATA)
         {
-          client.write(DATA_RECEIVED);
+         // client.write(DATA_RECEIVED);
         //отримано всі дані. вивести результат.
           Serial.println("\nraw Data: ");
           for (uint16_t i = 0; i < DATA_LEN; ++i)
@@ -264,7 +266,7 @@ bool getDataFromAP()
        if (connectToWifi())
        {
           client.write(WIFI_CONNECTED);
-          client.write(WiFi.localIP().toString().c_str(), IP_ADDR_LEN);
+          //client.write(WiFi.localIP().toString().c_str(), IP_ADDR_LEN);
           return true; 
        }
        else
@@ -286,6 +288,10 @@ bool getDataFromAP()
   return false;
 }
 
+/**
+ * @brief Saves fetched configs to internal flash memory
+ * @param TYPE : indicates which config to save: WiFi or MQTT.
+*/
 void saveConfigToSPIFFS(uint8_t TYPE)
 {
   Serial.println("SaveConfigToSPIFFS func");
@@ -319,6 +325,12 @@ void saveConfigToSPIFFS(uint8_t TYPE)
     //end save
   
 }
+
+/**
+ * @brief Fetches saved configs from internal flash memory. 
+ * @param TYPE : indicates which config to fetch: WiFi or MQTT.
+ * @return True if fetched data successfully, false otherwise.
+*/
 bool readConfigFromSPIFFS(uint8_t TYPE)
 {
   Serial.println("readConfigFromSPIFFS");
@@ -381,6 +393,11 @@ bool readConfigFromSPIFFS(uint8_t TYPE)
   //end read
   return result;
 }
+
+/**
+ * @brief Main function for WiFi configuration.
+ * @return True if connected to WiFi. False otherrwise.
+*/
 bool configWifi()
 {
   Serial.println("Start of config wifi");

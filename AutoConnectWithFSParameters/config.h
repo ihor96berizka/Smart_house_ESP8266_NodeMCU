@@ -1,6 +1,11 @@
 #ifndef _CONFIG_
 #define _CONFIG_
-
+/**
+ * @file config.h
+ * @author Ihor Berizka
+ * @date 30 Sep 2018
+ * @brief File contains general constants functions.
+*/
 #include "Arduino.h"
 //#include "FS.h"//
 #include "SPIFFS.h"//for esp32
