@@ -22,8 +22,8 @@
 #define IP_ADDR_LEN 16u
 
 //esp32 ap name and pwd
-char* ssid = "Wall Sensor";
-char* password = "";
+char* ssid = "Well Sensor";
+char* password = "11111111";
 
 #define DELIMITER '\n'
 #define MAX_STRING_LEN 25u
