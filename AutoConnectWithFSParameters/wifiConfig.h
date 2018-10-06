@@ -266,7 +266,8 @@ bool getDataFromAP()
        if (connectToWifi())
        {
           client.write((uint8_t)(WIFI_CONNECTED));
-          client.write(WiFi.localIP().toString().c_str(), IP_ADDR_LEN);
+          const char* currentIP = WiFi.localIP().toString().c_str();
+          client.write(currentIP, strlen(currentIP));
           return true; 
        }
        else
