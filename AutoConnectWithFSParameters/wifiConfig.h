@@ -68,6 +68,8 @@ void startAP()
   WiFi.softAP(ssid, password);
  
   Serial.println();
+  Serial.print("SSID: ");
+  Serial.println(ssid);
   Serial.print("IP address: ");
   Serial.println(WiFi.softAPIP());
  
@@ -267,7 +269,7 @@ bool getDataFromAP()
        {
           client.write((uint8_t)(WIFI_CONNECTED));
           const char* currentIP = WiFi.localIP().toString().c_str();
-          client.write(currentIP, strlen(currentIP));
+          client.write(currentIP);
           return true; 
        }
        else
