@@ -22,6 +22,8 @@ void setup() {
   
   Serial.begin(115200);
   configWifi();
+  Serial.println("stop AP mode");
+  WiFi.softAPdisconnect();
   Serial.println("Connected to wifi.\n Start second machine state");
   digitalWrite(LED_WIFI_ERROR, LOW);
   digitalWrite(LED_WIFI_OK, HIGH);
