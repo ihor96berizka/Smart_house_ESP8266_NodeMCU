@@ -27,6 +27,10 @@ void setup() {
   Serial.println("Connected to wifi.\n Start second machine state");
   digitalWrite(LED_WIFI_ERROR, LOW);
   digitalWrite(LED_WIFI_OK, HIGH);
+
+  configMQTT();
+  
+  Serial.println("Start third machine state.");
 }
 
 void loop() {
@@ -34,6 +38,8 @@ void loop() {
   //client.loop();
   //processADC();
   //delay(1000);
+  clientmqtt.publish("success!", "Hello world!");
+  delay(1000);
   resetConfigs();
   delay(100);
 }

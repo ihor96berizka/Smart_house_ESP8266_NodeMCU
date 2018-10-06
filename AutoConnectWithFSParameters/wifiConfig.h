@@ -11,6 +11,10 @@
 
 #include <ArduinoJson.h>          
 #include "config.h"
+//#include "mqttConfig.h"
+#include <PubSubClient.h>
+
+bool connectToMQTTServer();
 
 /**
  * @brief Function used for debug. 
@@ -199,12 +203,10 @@ bool connectToWifi()
  * If connection failed - returns false and writes to client WIFI_ERROR code.
  * @return True if connected to WiFi. False otherwise.
 */
-bool getDataFromAP()
+bool getDataFromAP(uint8_t CONFIG_TYPE)
 {
-  startAP();
-
   while(1)
-  {
+  {  
     WiFiClient client = wifiServer.available();
 
     if (client) 
@@ -218,7 +220,7 @@ bool getDataFromAP()
       {
      // Serial.println();
       //перевірити чи весь пакет прийшов. надіслати сповіщення клієнту що все отримано. 
-      uint8_t socketStatus = readSocket(client, DATA_LEN, DATA_TYPE);
+        uint8_t socketStatus = readSocket(client, DATA_LEN, DATA_TYPE);
         if (socketStatus == SOCKET_CORRECT_DATA)
         {
          // client.write(DATA_RECEIVED);
@@ -246,36 +248,51 @@ bool getDataFromAP()
               }
             }
             break;
-        /*  case MQTT_CONFIG:
-          {
-        //call mqtt parser.
-            Serial.println("\nMQTT settings:");
-            readParams(buff, PARAM_NUM_MQTT, mqttData);
-            Serial.println("Params parsed: ");
-            for (uint8_t i = 0; i < PARAM_NUM_MQTT; ++i)
+            case MQTT_CONFIG:
             {
-              printLine(mqttData[i]);  
+            //call mqtt parser.
+              Serial.println("\nMQTT settings:");
+              readParams(buff, PARAM_NUM_MQTT, mqttData);
+              Serial.println("Params parsed: ");
+              for (uint8_t i = 0; i < PARAM_NUM_MQTT; ++i)
+              {
+                printLine(mqttData[i]);  
+              }
             }
-          }
             break;
-            */
           default:
             break;
         } 
 
         delay(10);
+        if (CONFIG_TYPE == WIFI_CONFIG)
+        {
       //спробувати підключитись до вайфаю. якщо не виходить - відправити код помилки.
-       if (connectToWifi())
-       {
-          client.write((uint8_t)(WIFI_CONNECTED));
-          const char* currentIP = WiFi.localIP().toString().c_str();
-          client.write(currentIP);
-          return true; 
-       }
-       else
-       {
-          client.write(WIFI_ERROR); 
-       }
+          if (connectToWifi())
+          {
+            client.write((uint8_t)(WIFI_CONNECTED));
+            const char* currentIP = WiFi.localIP().toString().c_str();
+            client.write(currentIP);
+            return true; 
+          }
+          else
+          {
+            client.write(WIFI_ERROR); 
+          }
+        }
+        else if (CONFIG_TYPE == MQTT_CONFIG)
+        {
+          Serial.println("todo: mqtt configs handling"); 
+          if (connectToMQTTServer())
+          {
+            client.write((uint8_t)MQTT_CONNECTED);
+            return true;  
+          }
+          else
+          {
+            client.write((uint8_t)MQTT_ERROR);
+          } 
+        }
     }//всі дані прочитано
     else if (socketStatus == SOCKET_INVALID_DATA)//прийшло щось лєве... тут перевірка не канає.
     {
@@ -316,7 +333,7 @@ void saveConfigToSPIFFS(uint8_t TYPE)
       json["mqtt_pwd"] = mqttData[3];  
     }
     
-    File configFile = SPIFFS.open("/config.json", "w");
+    File configFile = SPIFFS.open("/config.json", "a");
     if (!configFile) {
       Serial.println("failed to open config file for writing");
     }
@@ -369,17 +386,38 @@ bool readConfigFromSPIFFS(uint8_t TYPE)
           Serial.println("\nparsed json");
           if (TYPE == WIFI_CONFIG)
           {
-            strcpy(wifiData[0], json["wifi_ssid"]);
-            strcpy(wifiData[1], json["wifi_pwd"]);
+            if (json.containsKey("wifi_ssid"))
+            {
+              strcpy(wifiData[0], json["wifi_ssid"]);
+              strcpy(wifiData[1], json["wifi_pwd"]);
+              result = true;
+            }
+            else
+            {
+              result = false;  
+            }
           }
           else if (TYPE == MQTT_CONFIG)
           {
+            if (json.containsKey("mqtt_server"))
+            {
             strcpy(mqttData[0], json["mqtt_server"]);
             strcpy(mqttData[1], json["mqtt_port"]);
             strcpy(mqttData[2], json["mqtt_user"]);
-            strcpy(mqttData[3], json["mqtt_pwd"]);  
+            strcpy(mqttData[3], json["mqtt_pwd"]);
+            Serial.println("Mqtt data parsed:");
+            printLine(mqttData[0]);
+            printLine(mqttData[1]);
+            printLine(mqttData[2]);
+            printLine(mqttData[3]);  
+            result = true;
+            }
+            else
+            {
+              result = false;  
+            }
           }
-          result = true;
+          
         } 
         else 
         {
@@ -415,7 +453,8 @@ bool configWifi()
     {
       Serial.println("Invalid data in flash");  
       Serial.println("Failed to load data from flash.\nStart AP mode");
-      if (getDataFromAP())
+      startAP();
+      if (getDataFromAP(WIFI_CONFIG))
       {
         saveConfigToSPIFFS(WIFI_CONFIG);
         return true;
@@ -429,7 +468,8 @@ bool configWifi()
   else
   {
     Serial.println("Failed to load data from flash.\nStart AP mode");
-    if (getDataFromAP())
+    startAP();
+    if (getDataFromAP(WIFI_CONFIG))
     {
       saveConfigToSPIFFS(WIFI_CONFIG);
       return true;
@@ -441,5 +481,110 @@ bool configWifi()
   }
 }
 
+//mqtt related objects
+WiFiClient espClient;
+PubSubClient clientmqtt(espClient);
 
+void receiveDataCallback(char* topic, byte* payload, size_t length) {
+ /* Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (size_t i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+
+  // Switch on the LED if an 1 was received as first character
+  if ((char)payload[0] == '1') {
+    Serial.println("qwerty");
+    digitalWrite(ledPin, HIGH);   // Turn the LED on 
+  } else {
+    digitalWrite(ledPin, LOW);  // Turn the LED off 
+    Serial.println("asdfg");
+  }
+*/
+}
+
+bool connectToMQTTServer()
+{
+  Serial.println("connectToMQTTServer func");
+  clientmqtt.setServer(mqttData[0], atoi(mqttData[1]));
+  clientmqtt.setCallback(receiveDataCallback);
+
+  uint8_t attempts = 0;
+  while (!clientmqtt.connected() && attempts < MQTT_TIMEOUT) 
+  {
+    if (clientmqtt.connect("ESP8266Client", mqttData[2], mqttData[3]))
+    {
+    
+    //delay(250);
+    Serial.println("connected to mqtt");
+    //end_time = millis();
+    }
+    else
+    {
+      Serial.println("Connection to mqtt failed.\n trying again...");
+      Serial.print("failed, rc=");
+      Serial.print(clientmqtt.state());
+      delay(500);
+    }
+    attempts++;
+   }
+
+   if (clientmqtt.connected() && attempts < MQTT_TIMEOUT)
+   {
+    Serial.println("Connected to mqtt server");
+    memset(buff, '\0', MAX_BUF_SIZE);
+    return true; 
+   }
+   else
+   {
+    Serial.println("Failed to connect to wifi...\n Error message is sent to app");
+    clearData(PARAM_NUM_MQTT, mqttData);
+    memset(buff, '\0', MAX_BUF_SIZE);
+    return false;
+   }
+}
+bool configMQTT()
+{
+  Serial.println("Config mqtt");
+  if (readConfigFromSPIFFS(MQTT_CONFIG))
+  {
+      Serial.println("Data is fetched from flash");
+      if (connectToMQTTServer())
+    {
+      Serial.println("Connected to wifi.");
+    }
+    else
+    {
+      Serial.println("Invalid data in flash");  
+      Serial.println("Failed to load data from flash.\Get from client");
+      
+      if (getDataFromAP(MQTT_CONFIG))
+      {
+        saveConfigToSPIFFS(MQTT_CONFIG);
+        return true;
+      }
+      else
+      {
+        return false;  
+      }
+    }
+  }
+  else
+  {
+    Serial.println("Failed to load data from flash.\nStart AP mode");
+    
+    if (getDataFromAP(MQTT_CONFIG))
+    {
+      saveConfigToSPIFFS(MQTT_CONFIG);
+      return true;
+    }
+    else
+    {
+      return false;  
+    }
+  }
+  Serial.print("End of ConfigMQTT func");
+}
 #endif

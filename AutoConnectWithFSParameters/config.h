@@ -13,6 +13,7 @@
 //wifi and mqtt configs
 #define DEVICE_NAME_LEN 14u
 #define WIFI_TIMEOUT 5u
+#define MQTT_TIMEOUT 5u
 #define DATA_RECEIVED 0xFFu
 #define HEADER_LEN 4u
 #define WIFI_ERROR 1u

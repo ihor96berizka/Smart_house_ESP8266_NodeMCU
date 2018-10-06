@@ -60,11 +60,11 @@ void processADC()
   //Serial.print("Currenr voltage: ");
   //Serial.println(mV);
   snprintf (msg, MSG_LEN, "Current range: %.2lf cm", rangeVal);
-  client.publish("range", msg);
+  clientmqtt.publish("range", msg);
   snprintf (msg, MSG_LEN, "Current bits: %ul", sensorVal);
-  client.publish("bits", msg);
+  clientmqtt.publish("bits", msg);
   snprintf (msg, MSG_LEN, "Current mV: %ul", mV);
-  client.publish("voltage", msg);
+  clientmqtt.publish("voltage", msg);
   //analogWrite(ledPin, sensorVal);
     
   //Serial.print("Currenr range:(char*) ");
