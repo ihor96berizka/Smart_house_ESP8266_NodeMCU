@@ -7,7 +7,6 @@
  * @brief File contains general constants functions.
 */
 #include "Arduino.h"
-//#include "FS.h"//
 #include "SPIFFS.h"//for esp32
 
 //wifi and mqtt configs
@@ -21,6 +20,9 @@
 #define MQTT_ERROR 20u
 #define MQTT_CONNECTED 21u
 #define IP_ADDR_LEN 16u
+
+#define WIFI_CONFIG_FILE "/configWifi.json"
+#define MQTT_CONFIG_FILE "/configMQTT.json"
 
 //esp32 ap name and pwd
 char* ssid = "Well Sensor";
