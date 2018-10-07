@@ -201,6 +201,7 @@ bool connectToWifi()
  * Gets data from client(app) and tryes to connect to WiFi.
  * If connection successful - returns true and writes to client WIFI_CONNECTED code  new IP address.
  * If connection failed - returns false and writes to client WIFI_ERROR code.
+ * @param CONFIG_TYPE : specifies for which state we run this functions(WIFI_CONFIG or MQTT_CONFIG)
  * @return True if connected to WiFi. False otherwise.
 */
 bool getDataFromAP(uint8_t CONFIG_TYPE)
@@ -308,11 +309,19 @@ bool getDataFromAP(uint8_t CONFIG_TYPE)
   return false;
 }
 
-void saveToFile(File& configFile,  JsonObject& json, const char* message)
+/**
+ * @brief Dump specified file to internal flash.
+ * @param configFile : file to be dumped.
+ * @param json : content to be written to file.
+ * @param message : log message.
+ * @return True if file was successfully dumped into flash memory.
+*/
+bool saveToFile(File& configFile,  JsonObject& json, const char* message)
 {
     if (!configFile) 
     {
       Serial.println("failed to open config file for writing");
+      return false;
     }
 
     json.printTo(Serial);
@@ -321,6 +330,7 @@ void saveToFile(File& configFile,  JsonObject& json, const char* message)
     Serial.print("Saved ");
     Serial.print(message);
     Serial.println(" parameters to SPIFFS");
+    return true;
 }
 
 /**
@@ -375,11 +385,11 @@ bool readConfigFromSPIFFS(uint8_t TYPE)
     const char* fileName = '\0';
     if (TYPE == WIFI_CONFIG)
     {
-      fileName = "/configWifi.json";
+      fileName = WIFI_CONFIG_FILE;
     }
-    else if (TYPE ==MQTT_CONFIG)
+    else if (TYPE == MQTT_CONFIG)
     {
-      fileName = "/configMQTT.json";  
+      fileName = MQTT_CONFIG_FILE;  
     }
     Serial.print("File with configs: ");
     Serial.println(fileName);
@@ -521,6 +531,10 @@ void receiveDataCallback(char* topic, byte* payload, size_t length) {
 */
 }
 
+/**
+ * @brief Connect to mqtt server using saved credentials
+ * @return True if connection is successful, false otherwise.
+*/
 bool connectToMQTTServer()
 {
   Serial.println("connectToMQTTServer func");
@@ -530,12 +544,9 @@ bool connectToMQTTServer()
   uint8_t attempts = 0;
   while (!clientmqtt.connected() && attempts < MQTT_TIMEOUT) 
   {
-    if (clientmqtt.connect("ESP8266Client", mqttData[2], mqttData[3]))
+    if (clientmqtt.connect("ESP32Client", mqttData[2], mqttData[3]))
     {
-    
-    //delay(250);
-    Serial.println("connected to mqtt");
-    //end_time = millis();
+      Serial.println("connected to mqtt");
     }
     else
     {
@@ -549,18 +560,22 @@ bool connectToMQTTServer()
 
    if (clientmqtt.connected() && attempts < MQTT_TIMEOUT)
    {
-    Serial.println("Connected to mqtt server");
-    memset(buff, '\0', MAX_BUF_SIZE);
-    return true; 
+      Serial.println("Connected to mqtt server");
+      memset(buff, '\0', MAX_BUF_SIZE);
+      return true; 
    }
    else
    {
-    Serial.println("Failed to connect to wifi...\n Error message is sent to app");
-    clearData(PARAM_NUM_MQTT, mqttData);
-    memset(buff, '\0', MAX_BUF_SIZE);
-    return false;
+      Serial.println("Failed to connect to wifi...\n Error message is sent to app");
+      clearData(PARAM_NUM_MQTT, mqttData);
+      memset(buff, '\0', MAX_BUF_SIZE);
+      return false;
    }
 }
+/**
+ * @brief Main function for mqtt configuration.
+ * @return True if connected to mqtt server, false otherwise.
+*/
 bool configMQTT()
 {
   Serial.println("Config mqtt");
@@ -568,24 +583,24 @@ bool configMQTT()
   {
       Serial.println("Data is fetched from flash");
       if (connectToMQTTServer())
-    {
-      Serial.println("Connected to wifi.");
-    }
-    else
-    {
-      Serial.println("Invalid data in flash");  
-      Serial.println("Failed to load data from flash.\Get from client");
-      
-      if (getDataFromAP(MQTT_CONFIG))
       {
-        saveConfigToSPIFFS(MQTT_CONFIG);
-        return true;
+        Serial.println("Connected to wifi.");
       }
       else
       {
-        return false;  
+        Serial.println("Invalid data in flash");  
+        Serial.println("Failed to load data from flash.\Get from client");
+      
+        if (getDataFromAP(MQTT_CONFIG))
+        {
+          saveConfigToSPIFFS(MQTT_CONFIG);
+          return true;
+        }
+        else
+        {
+          return false;  
+        }
       }
-    }
   }
   else
   {
