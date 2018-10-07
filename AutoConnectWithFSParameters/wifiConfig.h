@@ -272,7 +272,7 @@ bool getDataFromAP(uint8_t CONFIG_TYPE)
           {
             client.write((uint8_t)(WIFI_CONNECTED));
             const char* currentIP = WiFi.localIP().toString().c_str();
-            client.write(currentIP);
+            client.write(currentIP, strlen(currentIP));
             return true; 
           }
           else
@@ -308,6 +308,21 @@ bool getDataFromAP(uint8_t CONFIG_TYPE)
   return false;
 }
 
+void saveToFile(File& configFile,  JsonObject& json, const char* message)
+{
+    if (!configFile) 
+    {
+      Serial.println("failed to open config file for writing");
+    }
+
+    json.printTo(Serial);
+    json.printTo(configFile);
+    configFile.close();
+    Serial.print("Saved ");
+    Serial.print(message);
+    Serial.println(" parameters to SPIFFS");
+}
+
 /**
  * @brief Saves fetched configs to internal flash memory
  * @param TYPE : indicates which config to save: WiFi or MQTT.
@@ -323,7 +338,9 @@ void saveConfigToSPIFFS(uint8_t TYPE)
     if (TYPE == WIFI_CONFIG)
     {
       json["wifi_ssid"] = wifiData[0];
-      json["wifi_pwd"] = wifiData[1];      
+      json["wifi_pwd"] = wifiData[1];  
+      File configFile = SPIFFS.open("/configWifi.json", "a");
+      saveToFile(configFile, json, "wifi");
     }
     else if (TYPE == MQTT_CONFIG)
     {
@@ -331,21 +348,12 @@ void saveConfigToSPIFFS(uint8_t TYPE)
       json["mqtt_port"] = mqttData[1];
       json["mqtt_user"] = mqttData[2];
       json["mqtt_pwd"] = mqttData[3];  
+      File configFile = SPIFFS.open("/configMQTT.json", "a");
+      saveToFile(configFile, json, "mqtt");
     }
-    
-    File configFile = SPIFFS.open("/config.json", "a");
-    if (!configFile) {
-      Serial.println("failed to open config file for writing");
-    }
-
-    json.printTo(Serial);
-    json.printTo(configFile);
-    configFile.close();
-    Serial.println("Saved parameters to SPIFFS");
     //end save
   
 }
-
 /**
  * @brief Fetches saved configs from internal flash memory. 
  * @param TYPE : indicates which config to fetch: WiFi or MQTT.
@@ -364,12 +372,24 @@ bool readConfigFromSPIFFS(uint8_t TYPE)
   if (SPIFFS.begin()) 
   {
     Serial.println("mounted file system");
-    if (SPIFFS.exists("/config.json")) 
+    const char* fileName = '\0';
+    if (TYPE == WIFI_CONFIG)
+    {
+      fileName = "/configWifi.json";
+    }
+    else if (TYPE ==MQTT_CONFIG)
+    {
+      fileName = "/configMQTT.json";  
+    }
+    Serial.print("File with configs: ");
+    Serial.println(fileName);
+    
+    if (SPIFFS.exists(fileName)) 
     {
       result = true;
       //file exists, reading and loading
       Serial.println("reading config file");
-      File configFile = SPIFFS.open("/config.json", "r");
+      File configFile = SPIFFS.open(fileName, "r");
       if (configFile) 
       {
         Serial.println("opened config file");
@@ -405,11 +425,7 @@ bool readConfigFromSPIFFS(uint8_t TYPE)
             strcpy(mqttData[1], json["mqtt_port"]);
             strcpy(mqttData[2], json["mqtt_user"]);
             strcpy(mqttData[3], json["mqtt_pwd"]);
-            Serial.println("Mqtt data parsed:");
-            printLine(mqttData[0]);
-            printLine(mqttData[1]);
-            printLine(mqttData[2]);
-            printLine(mqttData[3]);  
+            Serial.println("Mqtt data parsed:"); 
             result = true;
             }
             else
